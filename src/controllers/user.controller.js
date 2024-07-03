@@ -42,39 +42,37 @@ const registerUser = asyncHandler(async (req, res) => {
 
 	const existingUser = await User.findOne({ email });
 	if (existingUser) {
-		const isPasswordValid = await existingUser.isPasswordCorrect(password);
-		if (!isPasswordValid) {
-			throw new ApiError(401, "Invalid Credentials");
-		}
-		const { accessToken, refreshToken } =
-			await generateAccessAndRefreshTokens(existingUser._id);
-
-		const loggedInUser = existingUser.toObject();
-		delete loggedInUser.password;
-		delete loggedInUser.refreshToken;
-
-		return res
-			.status(200)
-			.cookie("accessToken", accessToken, options)
-			.cookie("refreshToken", refreshToken, options)
-			.json(
-				new ApiResponse(
-					200,
-					{
-						user: loggedInUser,
-						accessToken,
-						refreshToken,
-					},
-					"User logged in successfully"
-				)
-			);
+		throw new ApiError(
+			409,
+			"A user with the provided email already exists"
+		);
 	}
 
-	await User.create({ name, email, password });
+	const user = await User.create({ name, email, password });
+
+	const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+		user._id
+	);
+
+	const loggedInUser = user.toObject();
+	delete loggedInUser.password;
+	delete loggedInUser.refreshToken;
 
 	return res
-		.status(201)
-		.json(new ApiResponse(201, {}, "User registered successfully"));
+		.status(200)
+		.cookie("accessToken", accessToken, options)
+		.cookie("refreshToken", refreshToken, options)
+		.json(
+			new ApiResponse(
+				200,
+				{
+					user: loggedInUser,
+					accessToken,
+					refreshToken,
+				},
+				"User registered and logged in successfully"
+			)
+		);
 });
 
 const loginUser = asyncHandler(async (req, res) => {
